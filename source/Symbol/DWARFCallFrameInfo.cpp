@@ -689,7 +689,9 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
                 case DW_CFA_def_cfa_expression  : // 0xF    (CFA Definition Instruction)
                     {
                         size_t block_len = (size_t)m_cfi_data.GetULEB128(&offset);
-                        offset += (uint32_t)block_len;
+                        const uint8_t *block_data = (uint8_t *)m_cfi_data.GetData(&offset, block_len);
+
+                        row->SetCFAIsDWARFExpression(block_data, block_len);
                     }
                     break;
 

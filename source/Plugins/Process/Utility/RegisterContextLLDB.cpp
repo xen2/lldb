@@ -116,6 +116,40 @@ RegisterContextLLDB::IsUnwindPlanValidForCurrentPC(lldb::UnwindPlanSP unwind_pla
     return false;
 }
 
+bool
+RegisterContextLLDB::ComputeCFA(ExecutionContext& exe_ctx, int row_register_kind, const UnwindPlan::RowSP& row, addr_t &value, int &offset)
+{
+    const uint8_t* opcodes;
+    uint32_t len;
+    row->GetCFADWARFExpression(&opcodes, len);
+
+    if (len != 0)
+    {
+        Process *process = exe_ctx.GetProcessPtr();
+        DataExtractor dwarfdata (opcodes, len,
+                            process->GetByteOrder(), process->GetAddressByteSize());
+        DWARFExpression dwarfexpr (m_current_pc.GetModule(), dwarfdata, 0, len);
+        dwarfexpr.SetRegisterKind ((RegisterKind)row_register_kind);
+        Value result;
+        Error error;
+        if (dwarfexpr.Evaluate (&exe_ctx, NULL, NULL, this, 0, NULL, result, &error))
+        {
+            value = result.GetScalar().ULongLong();
+            offset = 0;
+            return true;
+        }
+        else
+        {
+            value = LLDB_INVALID_REGNUM;
+            offset = 0;
+            return false;
+        }
+    }
+
+    offset = row->GetCFAOffset();
+    return ReadGPRValue (row_register_kind, row->GetCFARegister(), value);
+}
+
 // Initialize a RegisterContextLLDB which is the first frame of a stack -- the zeroth frame or currently
 // executing frame.
 
@@ -240,7 +274,7 @@ RegisterContextLLDB::InitializeZerothFrame()
 
 
     addr_t cfa_regval = LLDB_INVALID_ADDRESS;
-    if (!ReadGPRValue (row_register_kind, active_row->GetCFARegister(), cfa_regval))
+    if (!ComputeCFA (exe_ctx, row_register_kind, active_row, cfa_regval, cfa_offset))
     {
         UnwindLogMsg ("could not read CFA register for this frame.");
         m_frame_type = eNotAValidFrame;
@@ -368,9 +402,8 @@ RegisterContextLLDB::InitializeNonZerothFrame()
             UnwindPlan::RowSP row = m_full_unwind_plan_sp->GetRowForFunctionOffset(0);
             if (row.get())
             {
-                uint32_t cfa_regnum = row->GetCFARegister();
-                int cfa_offset = row->GetCFAOffset();
-                if (!ReadGPRValue (row_register_kind, cfa_regnum, cfa_regval))
+                int cfa_offset;
+                if (!ComputeCFA (exe_ctx, row_register_kind, row, cfa_regval, cfa_offset))
                 {
                     UnwindLogMsg ("failed to get cfa value");
                     if (m_frame_type != eSkipFrame)   // don't override eSkipFrame
@@ -554,7 +587,7 @@ RegisterContextLLDB::InitializeNonZerothFrame()
     }
 
     addr_t cfa_regval = LLDB_INVALID_ADDRESS;
-    if (!ReadGPRValue (row_register_kind, active_row->GetCFARegister(), cfa_regval))
+    if (!ComputeCFA (exe_ctx, row_register_kind, active_row, cfa_regval, cfa_offset))
     {
         UnwindLogMsg ("failed to get cfa reg %d/%d", row_register_kind, active_row->GetCFARegister());
         m_frame_type = eNotAValidFrame;
@@ -1378,6 +1411,7 @@ RegisterContextLLDB::TryFallbackUnwindPlan ()
     
     if (active_row && active_row->GetCFARegister() != LLDB_INVALID_REGNUM)
     {
+        ExecutionContext exe_ctx(m_thread.shared_from_this());
         FuncUnwindersSP func_unwinders_sp;
         if (m_sym_ctx_valid && m_current_pc.IsValid() && m_current_pc.GetModule())
         {
@@ -1390,9 +1424,10 @@ RegisterContextLLDB::TryFallbackUnwindPlan ()
         m_registers.clear();
         m_full_unwind_plan_sp = m_fallback_unwind_plan_sp;
         addr_t cfa_regval = LLDB_INVALID_ADDRESS;
-        if (ReadGPRValue (m_fallback_unwind_plan_sp->GetRegisterKind(), active_row->GetCFARegister(), cfa_regval))
+        int cfa_offset;
+        if (ComputeCFA (exe_ctx, m_fallback_unwind_plan_sp->GetRegisterKind(), active_row, cfa_regval, cfa_offset))
         {
-            m_cfa = cfa_regval + active_row->GetCFAOffset ();
+            m_cfa = cfa_regval + cfa_offset;
         }
 
         UnwindLogMsg ("full unwind plan '%s' has been replaced by architecture default unwind plan '%s' for this function from now on.",

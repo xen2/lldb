@@ -244,6 +244,7 @@ public:
             m_offset             (rhs.m_offset),
             m_cfa_reg_num        (rhs.m_cfa_reg_num),
             m_cfa_offset         (rhs.m_cfa_offset),
+            m_cfa_expr           (rhs.m_cfa_expr),
             m_register_locations (rhs.m_register_locations)
         {
         }
@@ -314,6 +315,12 @@ public:
         void
         SetCFARegister (uint32_t reg_num);
 
+        void
+        SetCFAIsDWARFExpression (const uint8_t *opcodes, uint32_t len);
+
+        void
+        GetCFADWARFExpression (const uint8_t **opcodes, uint32_t& len) const;
+
         int32_t
         GetCFAOffset () const
         {
@@ -337,6 +344,10 @@ public:
         lldb::addr_t m_offset;      // Offset into the function for this row
         uint32_t m_cfa_reg_num;     // The Call Frame Address register number
         int32_t  m_cfa_offset;      // The offset from the CFA for this row
+        struct {
+            const uint8_t *opcodes;
+            uint16_t length;
+        } m_cfa_expr;
         collection m_register_locations;
     }; // class Row
 

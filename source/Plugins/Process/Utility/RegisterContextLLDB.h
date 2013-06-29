@@ -103,6 +103,9 @@ private:
     bool
     IsFrameZero () const;
 
+    bool
+    ComputeCFA(ExecutionContext& exe_ctx, int row_register_kind, const UnwindPlan::RowSP& row, lldb::addr_t &value, int &offset);
+
     void
     InitializeZerothFrame ();
 

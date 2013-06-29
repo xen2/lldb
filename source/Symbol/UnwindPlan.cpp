@@ -162,28 +162,35 @@ UnwindPlan::Row::Clear ()
 void
 UnwindPlan::Row::Dump (Stream& s, const UnwindPlan* unwind_plan, Thread* thread, addr_t base_addr) const
 {
-    const RegisterInfo *reg_info = unwind_plan->GetRegisterInfo (thread, GetCFARegister());
-
-    if (base_addr != LLDB_INVALID_ADDRESS)
-        s.Printf ("0x%16.16" PRIx64 ": CFA=", base_addr + GetOffset());
-    else
-        s.Printf ("0x%8.8" PRIx64 ": CFA=", GetOffset());
-            
-    if (reg_info)
-        s.Printf ("%s", reg_info->name);
-    else
-        s.Printf ("reg(%u)", GetCFARegister());
-    s.Printf ("%+3d => ", GetCFAOffset ());
-    for (collection::const_iterator idx = m_register_locations.begin (); idx != m_register_locations.end (); ++idx)
+    if (m_cfa_expr.length != 0)
     {
-        reg_info = unwind_plan->GetRegisterInfo (thread, idx->first);
+        s.Printf ("expr(...)");
+    }
+    else
+    {
+        const RegisterInfo *reg_info = unwind_plan->GetRegisterInfo (thread, GetCFARegister());
+
+        if (base_addr != LLDB_INVALID_ADDRESS)
+            s.Printf ("0x%16.16" PRIx64 ": CFA=", base_addr + GetOffset());
+        else
+            s.Printf ("0x%8.8" PRIx64 ": CFA=", GetOffset());
+            
         if (reg_info)
             s.Printf ("%s", reg_info->name);
         else
-            s.Printf ("reg(%u)", idx->first);
-        const bool verbose = false;
-        idx->second.Dump(s, unwind_plan, this, thread, verbose);
-        s.PutChar (' ');
+            s.Printf ("reg(%u)", GetCFARegister());
+        s.Printf ("%+3d => ", GetCFAOffset ());
+        for (collection::const_iterator idx = m_register_locations.begin (); idx != m_register_locations.end (); ++idx)
+        {
+            reg_info = unwind_plan->GetRegisterInfo (thread, idx->first);
+            if (reg_info)
+                s.Printf ("%s", reg_info->name);
+            else
+                s.Printf ("reg(%u)", idx->first);
+            const bool verbose = false;
+            idx->second.Dump(s, unwind_plan, this, thread, verbose);
+            s.PutChar (' ');
+        }
     }
     s.EOL();
 }
@@ -194,6 +201,8 @@ UnwindPlan::Row::Row() :
     m_cfa_offset(0),
     m_register_locations()
 {
+    m_cfa_expr.length = 0;
+    m_cfa_expr.opcodes = NULL;
 }
 
 bool
@@ -294,6 +303,20 @@ void
 UnwindPlan::Row::SetCFARegister (uint32_t reg_num)
 {
     m_cfa_reg_num = reg_num;
+}
+
+void
+UnwindPlan::Row::SetCFAIsDWARFExpression (const uint8_t *opcodes, uint32_t len)
+{
+    m_cfa_expr.opcodes = opcodes;
+    m_cfa_expr.length = len;
+}
+
+void
+UnwindPlan::Row::GetCFADWARFExpression (const uint8_t **opcodes, uint32_t& len) const
+{
+    *opcodes = m_cfa_expr.opcodes;
+    len = m_cfa_expr.length;
 }
 
 bool
