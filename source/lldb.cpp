@@ -69,6 +69,10 @@
 #include "Plugins/Platform/MacOSX/PlatformiOSSimulator.h"
 #include "Plugins/SystemRuntime/MacOSX/SystemRuntimeMacOSX.h"
 #endif
+#ifdef _WIN32
+#include "Plugins/DynamicLoader/Windows/DynamicLoaderWindows.h"
+#include "Plugins/Process/Windows/ProcessWindows.h"
+#endif
 
 #include "Plugins/Process/mach-core/ProcessMachCore.h"
 
@@ -132,6 +136,10 @@ lldb_private::Initialize ()
         JITLoaderGDB::Initialize();
         ProcessElfCore::Initialize();
         
+#ifdef _WIN32
+        DynamicLoaderWindows::Initialize();
+        ProcessWindows::Initialize();
+#endif
 #if defined (__APPLE__)
         //----------------------------------------------------------------------
         // Apple/Darwin hosted plugins
@@ -218,6 +226,10 @@ lldb_private::Terminate ()
     JITLoaderGDB::Terminate();
     ProcessElfCore::Terminate();
     
+#ifdef _WIN32
+    DynamicLoaderWindows::Terminate();
+    ProcessWindows::Terminate();
+#endif
 #if defined (__APPLE__)
     DynamicLoaderMacOSXDYLD::Terminate();
     DynamicLoaderDarwinKernel::Terminate();

@@ -43,6 +43,8 @@ DIRS += JITLoader/GDB
 endif
 
 ifeq ($(HOST_OS),MingW)
+DIRS += Process/Windows
+DIRS += DynamicLoader/Windows
 DIRS += Process/elf-core
 DIRS += JITLoader/GDB
 endif
