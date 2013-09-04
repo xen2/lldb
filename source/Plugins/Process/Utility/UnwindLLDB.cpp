@@ -261,6 +261,10 @@ UnwindLLDB::AddOneMoreFrame (ABI *abi)
             goto unwind_done; 
         }
     }
+    else if (m_frames.back()->cfa > cursor_sp->cfa)
+    {
+        goto unwind_done;
+    }
 
     cursor_sp->reg_ctx_lldb_sp = reg_ctx_sp;
     m_frames.push_back (cursor_sp);
