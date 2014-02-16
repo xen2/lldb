@@ -4686,6 +4686,8 @@ demangle(const char* first, const char* last, C& db, int& status)
                 const char* t = parse_encoding(first+2, last, db);
                 if (t != first+2 && t != last && *t == '.')
                     t = parse_dot_suffix(t, last, db);
+                if (t != last && *t == '@')
+                    t = parse_number(t + 1, last);
                 if (t != last)
                     status = invalid_mangled_name;
             }
