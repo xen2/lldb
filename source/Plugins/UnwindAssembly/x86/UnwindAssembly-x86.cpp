@@ -749,6 +749,12 @@ loopnext:
 
         unwind_plan.AppendRow (epi_row);
     }
+
+    // could not extract any information, let's just fallback to ABI default
+    if (unwind_plan.GetRowCount() == 1)
+    {
+        return false;
+    }
     
     unwind_plan.SetSourceName ("assembly insn profiling");
     unwind_plan.SetSourcedFromCompiler (eLazyBoolNo);
